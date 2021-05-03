@@ -1,0 +1,29 @@
+library(sciClone)
+####################### user input ####################### 
+args = commandArgs(trailingOnly =TRUE)
+sample_name=args[1]
+maf_file=args[2]
+cnv_file=args[3]
+output_dir=args[4]
+####################### read ssm cnv data ####################### 
+#read in vaf data
+#format is 5 column, tab delimited: 
+#chr, pos, ref_reads, var_reads, vaf
+maf_file=read.table(maf_file,sep='\t',stringsAsFactors = F,header = T,fill=T)
+#TTotCov: tumor total coverage; TVarCov: tumor variant coverage different dataset have different column name
+mutation_vaf=as.numeric(maf_file$var_reads)/(as.numeric(maf_file$var_reads)+as.numeric(maf_file$ref_reads))
+v1 = cbind.data.frame(maf_file[,-1],mutation_vaf)
+colnames(v1)=c('chr','pos','ref_reads','var_reads','vaf')
+v1$vaf=100*v1$vaf
+#read in segmented copy number data
+#4 columns - chr, start, stop, segment_mean   
+cnv_file=read.table(cnv_file,sep='\t',stringsAsFactors = F,header = T)
+cnv_file$segment_mean=2*2^cnv_file$segment_mean
+colnames(cnv_file)=c('chr','start','stop','copy_number')
+#clustering on one sample
+sc = sciClone(vafs=v1,
+              copyNumberCalls=cnv_file,maximumClusters=10,
+              sampleNames=sample_name)
+#create output
+writeClusterTable(sc, paste0(output_dir,"/sciclone_output.txt"))
+

@@ -1,0 +1,39 @@
+####################### user input ####################### 
+args = commandArgs(trailingOnly =TRUE)
+sample_name=args[1]
+maf_file=args[2]
+cnv_file=args[3]
+output_dir=args[4]
+################################# map copy number to mutations ###################
+maf_file=read.table(maf_file,stringsAsFactors = F,header=T,sep='\t')
+cnv_file=read.table(cnv_file,stringsAsFactors = F,header=T,sep='\t')
+maf_file[maf_file$chr=='X','chr']=23
+#remove 'chr' if chr in maf file or cnv file
+if(grepl('hr',maf_file$chr[1])){
+  maf_file$chr=unlist(sapply(maf_file$chr,function(x) strsplit(x,'hr')[[1]][2]))
+}
+if(grepl('hr',cnv_file$chr[1])){
+  cnv_file$chr=unlist(sapply(cnv_file$chr,function(x) strsplit(x,'hr')[[1]][2]))
+}
+#map mutation to copy number
+maf_total_cn=
+  unlist(sapply(1:dim(maf_file)[1], function(x) 
+  {onchrom=cnv_file[cnv_file$chr==maf_file[x,'chr'],]
+  if(any(onchrom[,'stop']>maf_file[x,'start'])){
+    Segment_mean=(onchrom[which(onchrom[,'start']==min(onchrom[onchrom[,'stop']>maf_file[x,'start'],'stop'])),'segment_mean'])
+  }else{    #If the mutation cannot find on any segment of cnv file set segment mean to 0
+    Segment_mean=0
+  }
+  2*2^Segment_mean}))
+#cellularity 
+#TTotCov: tumor total coverage; TVarCov: tumor variant coverage
+maf_file$vaf=maf_file$var_reads/(maf_file$ref_reads+maf_file$var_reads)
+cellularity=2*quantile(maf_file$vaf,0.8,na.rm=T)
+#adjust copy number by cellularity
+maf_total_cn_adj=(maf_total_cn-2*(1-cellularity))/cellularity #assume normal cells are diploid
+################################# generate tsv file ###################
+mutation_id=paste(sample_name,maf_file$Hugo_Symbol,maf_file$chr,maf_file$pos)
+mutation=cbind(mutation_id,floor(maf_file$ref_reads+maf_file$var_reads),floor(maf_file$var_reads),rep(2,dim(maf_file)[1]),rep(0,dim(maf_file)[1]),round(maf_total_cn_adj,0),mutation_id,maf_file$vaf,rep('AB',dim(maf_file)[1]))
+colnames(mutation)=c('mutation_id','ref_counts','var_counts','normal_cn','minor_cn','major_cn','variant_case','variant_freq','genotype')
+mutation=mutation[!is.na(mutation[,8]),]
+write.table(mutation,file=paste0(output_dir,'/',sample_name,'.tsv'),quote=F,col.names = T,row.names = F,sep='\t')

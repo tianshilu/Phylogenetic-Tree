@@ -1,0 +1,15 @@
+Denpendencies:
+#PhyloWGS:python2; python2 version of NumPy and SciPy; python2 version of ETE2; GSL; compile the C++ file by the command ( g++ -o mh.o -O3 mh.cpp  util.cpp `gsl-config --cflags --libs`)
+#SciClone:R version >= 3.5; #install IRanges from bioconductor
+source("http://bioconductor.org/biocLite.R")
+biocLite("IRanges")
+#install devtools if you don't have it already
+install.packages("devtools")
+library(devtools)
+install_github("genome/bmm")
+install_github("genome/sciClone")
+#Pyclone
+
+Input Files:
+maf_file: 5 columns gene,chr(chromosome), pos(start position), ref_reads(number of reference reads), var_reads(number of variance reads) 
+cnv_file: 5 columns gene,chr(chromosome), start(start position), stop(stop position), segment_mean(segment mean of cnv); if cnv_file is unavailable, generate a file with colnames names as "chr", "start","stop","segment_mean" separated by "\t"
